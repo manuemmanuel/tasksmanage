@@ -6,6 +6,9 @@ import { ArrowRight, CheckCircle, Shield, Zap, Star, Users, Trophy, Sparkles, Cl
 import Image from "next/image"
 import avatar1 from './images/avatar1.png';
 import avatar2 from './images/avatar2.png';
+import ai from './images/ai-feature.jpeg';
+import game from './images/gamified-quests.jpeg';
+import social from './images/social-features.jpeg';
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -190,7 +193,7 @@ export default function Home() {
                     <div className="w-full h-40 relative rounded-lg overflow-hidden mb-6">
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0E0529] to-transparent z-10"></div>
                       <Image
-                        src="/images/ai-feature.jpeg"
+                        src={ai}
                         alt="AI-Powered Tasks"
                         width={300}
                         height={200}
@@ -220,7 +223,7 @@ export default function Home() {
                     <div className="w-full h-40 relative rounded-lg overflow-hidden mb-6">
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0E0529] to-transparent z-10"></div>
                       <Image
-                        src="/images/gamified-quests.png"
+                        src={game}
                         alt="Gamified Quests"
                         width={300}
                         height={200}
@@ -250,7 +253,7 @@ export default function Home() {
                     <div className="w-full h-40 relative rounded-lg overflow-hidden mb-6">
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0E0529] to-transparent z-10"></div>
                       <Image
-                        src="/images/social-features.jpeg"
+                        src={social}
                         alt="Social Features"
                         width={300}
                         height={200}

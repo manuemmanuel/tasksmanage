@@ -28,20 +28,56 @@ export default function Signup() {
       setLoading(true)
       setError(null)
       
-      const { error } = await supabase.auth.signUp({
+      console.log('Attempting signup with email:', email) // Debug log
+      
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            email_confirmed: false, // Add this to track confirmation status
+          }
         },
       })
 
-      if (error) throw error
+      console.log('Signup response:', { data, error }) // Debug log
 
-      // Show success message or redirect
-      router.push('/auth/verify-email')
-    } catch (error) {
-      setError(error.message)
+      if (error) {
+        console.error('Signup error details:', error) // Detailed error log
+        if (error.message.includes('email')) {
+          setError('Unable to send confirmation email. Please check your email address and try again.')
+        } else if (error.status === 500) {
+          setError('Server error. Please try again later or contact support.')
+        } else {
+          setError(error.message || 'An error occurred during signup')
+        }
+        return
+      }
+
+      // Check if the user was created but email wasn't sent
+      if (data?.user && !data?.session) {
+        console.log('User created, awaiting email verification') // Debug log
+        router.push('/auth/verify-email')
+      } else if (data?.session) {
+        console.log('User created and signed in') // Debug log
+        router.push('/dashboard')
+      } else {
+        console.error('Unexpected response:', data) // Debug log
+        setError('Something went wrong. Please try again.')
+      }
+
+    } catch (error: any) {
+      console.error('Signup error:', {
+        message: error.message,
+        status: error.status,
+        details: error
+      })
+      setError(
+        error.status === 500 
+          ? 'Server error. Please try again later.' 
+          : 'An unexpected error occurred. Please try again.'
+      )
     } finally {
       setLoading(false)
     }

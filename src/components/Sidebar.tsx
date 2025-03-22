@@ -21,7 +21,8 @@ import {
   Gamepad2,
   ChevronLeft,
   Menu,
-  LogOut
+  LogOut,
+  Music
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { Button } from './ui/button'
@@ -41,7 +42,7 @@ function NavItem({ href, icon: Icon, label, isActive, expanded }: NavItemProps) 
       href={href}
       className={cn(
         "flex items-center gap-4 px-3 py-2 rounded-lg transition-all duration-300",
-        "group relative",
+        "group relative overflow-visible",
         isActive 
           ? "bg-violet-500/20 text-violet-100" 
           : "text-violet-300/80 hover:bg-violet-500/10 hover:text-violet-100",
@@ -56,7 +57,7 @@ function NavItem({ href, icon: Icon, label, isActive, expanded }: NavItemProps) 
       {expanded ? (
         <span>{label}</span>
       ) : (
-        <div className="absolute left-full rounded-lg px-3 py-2 ml-2 bg-[#1C1033] text-sm invisible opacity-0 -translate-x-3 transition-all group-hover:visible group-hover:opacity-100 group-hover:translate-x-0 min-w-[120px] border border-violet-500/20 shadow-xl shadow-violet-500/20">
+        <div className="absolute left-full rounded-lg px-3 py-2 ml-2 bg-[#1C1033] text-sm invisible opacity-0 -translate-x-3 transition-all group-hover:visible group-hover:opacity-100 group-hover:translate-x-0 min-w-[120px] border border-violet-500/20 shadow-xl shadow-violet-500/20 z-[200] overflow-visible">
           <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-2 h-2 bg-[#1C1033] rotate-45 border-l border-b border-violet-500/20"></div>
           {label}
         </div>
@@ -68,7 +69,7 @@ function NavItem({ href, icon: Icon, label, isActive, expanded }: NavItemProps) 
 function NavGroup({ title, children, expanded }: { title: string, children: React.ReactNode, expanded: boolean }) {
   return (
     <div className={cn(
-      "space-y-2",
+      "space-y-2 overflow-visible",
       !expanded && "flex flex-col items-center"
     )}>
       {expanded ? (
@@ -86,27 +87,77 @@ function NavGroup({ title, children, expanded }: { title: string, children: Reac
 export default function Sidebar() {
   const [expanded, setExpanded] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const pathname = usePathname()
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setIsAuthenticated(!!session)
+      try {
+        setIsLoading(true)
+        console.log('Checking authentication...')
+        
+        // Check for either Supabase auth or Spotify token
+        const { data: { session }, error } = await supabase.auth.getSession()
+        const spotifyToken = localStorage.getItem('spotify_token')
+        
+        if (error) {
+          console.error('Auth check error:', error)
+          return
+        }
+        
+        console.log('Session:', session)
+        // Set authenticated if either Supabase session exists OR Spotify token exists
+        setIsAuthenticated(!!session || !!spotifyToken)
+      } catch (error) {
+        console.error('Auth check failed:', error)
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     checkAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsAuthenticated(!!session)
+    // Listen for Supabase auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session)
+      const spotifyToken = localStorage.getItem('spotify_token')
+      setIsAuthenticated(!!session || !!spotifyToken)
+      
+      // Only redirect to login if both Supabase session and Spotify token are missing
+      if (event === 'SIGNED_OUT' && !spotifyToken) {
+        window.location.href = '/auth/login'
+      }
     })
 
-    return () => subscription.unsubscribe()
+    // Listen for Spotify token changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'spotify_token') {
+        checkAuth()
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+
+    return () => {
+      subscription.unsubscribe()
+      window.removeEventListener('storage', handleStorageChange)
+    }
   }, [])
 
   const isActive = (path: string) => pathname === path
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    try {
+      console.log('Logging out...')
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Logout error:', error)
+      } else {
+        console.log('Logged out successfully')
+        window.location.href = '/auth/login'
+      }
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
   }
 
   const renderFooterItems = () => {
@@ -171,6 +222,7 @@ export default function Sidebar() {
         </NavGroup>
 
         <NavGroup title="Gamification" expanded={expanded}>
+          <NavItem href="/character" icon={User} label="Character" isActive={isActive("/character")} expanded={expanded} />
           <NavItem href="/quests" icon={Crown} label="Quests" isActive={isActive("/quests")} expanded={expanded} />
           <NavItem href="/dailies" icon={Zap} label="Dailies" isActive={isActive("/dailies")} expanded={expanded} />
           <NavItem href="/rewards" icon={Trophy} label="Rewards" isActive={isActive("/rewards")} expanded={expanded} />
@@ -178,10 +230,20 @@ export default function Sidebar() {
           <NavItem href="/minigame" icon={Gamepad2} label="Mini-Game" isActive={isActive("/minigame")} expanded={expanded} />
         </NavGroup>
 
-        <NavGroup title="Community" expanded={expanded}>
+        <NavGroup title="Social & AI" expanded={expanded}>
           <NavItem href="/social" icon={Users} label="Social Feed" isActive={isActive("/social")} expanded={expanded} />
           <NavItem href="/messages" icon={MessageSquare} label="Messages" isActive={isActive("/messages")} expanded={expanded} />
           <NavItem href="/ai-assistant" icon={Zap} label="AI Assistant" isActive={isActive("/ai-assistant")} expanded={expanded} />
+        </NavGroup>
+
+        <NavGroup title="Entertainment" expanded={expanded}>
+          <NavItem 
+            href="/music" 
+            icon={Music} 
+            label="Music" 
+            isActive={isActive("/music")} 
+            expanded={expanded} 
+          />
         </NavGroup>
       </>
     )
@@ -201,12 +263,12 @@ export default function Sidebar() {
 
       <nav 
         className={cn(
-          "fixed top-0 left-0 h-full bg-[#0E0529] border-r border-violet-500/20 transition-all duration-300 z-40",
+          "fixed top-0 left-0 h-full bg-[#0E0529] border-r border-violet-500/20 transition-all duration-300 z-40 overflow-visible",
           expanded ? "w-72" : "w-16",
           "hidden md:block",
         )}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full overflow-visible">
           {/* Header */}
           <div className={cn(
             "flex items-center gap-2 p-4 border-b border-violet-500/20",
@@ -238,32 +300,36 @@ export default function Sidebar() {
           </div>
 
           {/* Navigation Links */}
-          <div className="flex-1 px-2 py-4 space-y-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-            {renderNavigationItems()}
-          </div>
+          <div className="flex-1 overflow-y-auto no-scrollbar overflow-visible">
+            <div className="px-2 py-4 space-y-4 overflow-visible">
+              {renderNavigationItems()}
+            </div>
 
-          {/* Footer */}
-          <div className={cn(
-            "p-4 border-t border-violet-500/20 space-y-2",
-            !expanded && "p-2"
-          )}>
-            {renderFooterItems()}
+            {/* Footer items */}
+            <div className={cn(
+              "p-4 space-y-2 border-t border-violet-500/20 overflow-visible",
+              !expanded && "p-2"
+            )}>
+              {renderFooterItems()}
+            </div>
           </div>
         </div>
       </nav>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile Sidebar - Also updated for overflow */}
       <nav className={cn(
-        "fixed inset-0 bg-[#0E0529] z-40 transition-transform duration-300 md:hidden",
+        "fixed inset-0 bg-[#0E0529] z-40 transition-transform duration-300 md:hidden overflow-visible",
         expanded ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full pt-16">
-          <div className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
-            {renderNavigationItems()}
-          </div>
+          <div className="flex-1 overflow-y-auto overflow-x-visible">
+            <div className="px-3 py-4 space-y-6">
+              {renderNavigationItems()}
+            </div>
 
-          <div className="p-4 border-t border-violet-500/20 space-y-2">
-            {renderFooterItems()}
+            <div className="p-4 border-t border-violet-500/20 space-y-2">
+              {renderFooterItems()}
+            </div>
           </div>
         </div>
       </nav>

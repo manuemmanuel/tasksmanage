@@ -40,9 +40,9 @@ export default function AIAssistantPage() {
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session }, error } = await supabase.auth.getSession()
-      if (error || !session) {
-        router.push('/login') // Redirect to login if no session
-      }
+      // if (error || !session) {
+      //   router.push('/login') // Redirect to login if no session
+      // }
     }
 
     // Check initial session
@@ -50,9 +50,9 @@ export default function AIAssistantPage() {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
-        router.push('/login')
-      }
+      // if (event === 'SIGNED_OUT' || !session) {
+      //   router.push('/login')
+      // }
     })
 
     // Cleanup subscription
